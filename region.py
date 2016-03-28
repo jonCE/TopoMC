@@ -2,6 +2,7 @@
 
 from __future__ import division
 from math import ceil, floor
+import re
 import os
 import os.path
 import yaml
@@ -206,23 +207,30 @@ class Region:
         layerdir = os.path.join(Region.downloadtop, layertype)
         if not os.path.exists(layerdir):
             os.makedirs(layerdir)
-        extracthead = os.path.basename(zipfile).split('.')[0]
+        extractheads = []
+        # e.g. nXXwXXX.zip, NLCD2011_LC_NXXWXXX.zip
+        extractheads.append(os.path.basename(zipfile).split('.')[0])
+        # e.g. USGS_NED_nXXwXXX_1-3_arc-second_2013_1_x_1_degree_IMG.zip
+        coord_string = re.findall('[nN]\d\d[wW]\d\d\d', extractheads[0])
+        if coord_string:
+            extractheads.append(coord_string[0])
         extractfiles = []
         for template in templates[layertype]:
             if extractfiles != []:
                 break
-            basefile = template % extracthead
-            for suffixset in suffixes[layertype]:
-                if extractfiles != []:
-                    break
-                for suffix in suffixset:
-                    checkfile = '%s.%s' % (basefile, suffix)
-                    retval = os.system('unzip -l "%s" "%s" >/dev/null' % (zipfile, checkfile))
-                    if retval == 0:
-                        # file is present!
-                        extractfiles.append(checkfile)
+            for extracthead in extractheads:
+                basefile = template % extracthead
+                for suffixset in suffixes[layertype]:
+                    if extractfiles != []:
+                        break
+                    for suffix in suffixset:
+                        checkfile = '%s.%s' % (basefile, suffix)
+                        retval = os.system('unzip -l "%s" "%s" >/dev/null' % (zipfile, checkfile))
+                        if retval == 0:
+                            # file is present!
+                            extractfiles.append(checkfile)
         if extractfiles == []:
-            print "OMG need better templates!"
+            print "Unrecognized file naming scheme."
 
         for extractfile in extractfiles:
             if os.path.exists(os.path.join(layerdir, extractfile)):
